@@ -4,6 +4,11 @@ from converter import convert_ff_to_listmonk
 app = Flask(__name__)
 
 
+@app.route("/health", methods=["GET"])
+def health():
+    return {"status": "ok"}
+
+
 @app.route("/", methods=["GET"])
 def index():
     return render_template("index.html")
