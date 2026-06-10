@@ -1,5 +1,7 @@
 # FF-Agent → Listmonk Konverter
 
+[![CI](https://github.com/kvn-stgl/FFAgent2Listmonk/actions/workflows/ci.yml/badge.svg)](https://github.com/kvn-stgl/FFAgent2Listmonk/actions/workflows/ci.yml)
+
 Web-App zum Konvertieren von FF-Agent CSV-Exporten in das Listmonk-Importformat.
 
 ## Features
