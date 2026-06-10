@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FF-Agent → Listmonk Konverter</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.08);
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .logo svg { flex-shrink: 0; }
+
+    h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #1a1a2e;
+      line-height: 1.3;
+    }
+
+    h1 span {
+      color: #e63946;
+    }
+
+    p.subtitle {
+      color: #555;
+      font-size: .9rem;
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+
+    .drop-zone {
+      border: 2px dashed #cdd5df;
+      border-radius: 10px;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragover {
+      border-color: #e63946;
+      background: #fff5f5;
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .drop-icon {
+      font-size: 2.5rem;
+      margin-bottom: .75rem;
+    }
+
+    .drop-zone p {
+      color: #666;
+      font-size: .9rem;
+    }
+
+    .drop-zone .file-name {
+      margin-top: .5rem;
+      font-weight: 600;
+      color: #e63946;
+      font-size: .9rem;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      margin-top: 1.5rem;
+      padding: .85rem;
+      background: #e63946;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s, transform .1s;
+    }
+
+    .btn:hover { background: #c1121f; }
+    .btn:active { transform: scale(.98); }
+    .btn:disabled { background: #ccc; cursor: not-allowed; }
+
+    .error {
+      margin-top: 1rem;
+      background: #fff0f0;
+      border: 1px solid #ffc0c0;
+      color: #c1121f;
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      font-size: .875rem;
+    }
+
+    .info {
+      margin-top: 1.5rem;
+      font-size: .8rem;
+      color: #888;
+      line-height: 1.6;
+    }
+
+    .badge {
+      display: inline-block;
+      background: #f0f2f5;
+      color: #444;
+      border-radius: 4px;
+      padding: .1em .4em;
+      font-family: monospace;
+      font-size: .85em;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="36" height="36" rx="8" fill="#e63946"/>
+        <path d="M10 26 L18 10 L26 26" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <path d="M13 21 H23" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+      </svg>
+      <h1>FF-Agent <span>→</span> Listmonk</h1>
+    </div>
+
+    <p class="subtitle">
+      Lade eine CSV-Datei aus dem FF-Agent hoch. Sie wird automatisch in das
+      Listmonk-Importformat konvertiert und als Download bereitgestellt.
+    </p>
+
+    <form method="POST" action="/convert" enctype="multipart/form-data" id="uploadForm">
+      <div class="drop-zone" id="dropZone">
+        <input type="file" name="file" id="fileInput" accept=".csv" required>
+        <div class="drop-icon">📂</div>
+        <p>CSV-Datei hier ablegen oder <strong>klicken</strong></p>
+        <div class="file-name" id="fileName"></div>
+      </div>
+
+      {% if error %}
+      <div class="error">⚠️ {{ error }}</div>
+      {% endif %}
+
+      <button type="submit" class="btn" id="submitBtn" disabled>
+        Konvertieren &amp; Herunterladen
+      </button>
+    </form>
+
+    <div class="info">
+      Gemappte Felder: <span class="badge">email</span> <span class="badge">name</span>
+      sowie als <span class="badge">attributes</span>:
+      <span class="badge">firstname</span>
+      <span class="badge">birthdate</span>
+      <span class="badge">einheitsfuehrer</span>
+      <span class="badge">gruppenfuehrer</span><br>
+      Nur aktive Mitglieder werden exportiert. Einträge ohne gültige E-Mail-Adresse werden übersprungen.<br>
+      Maskierte Geburtstage (<code>**********</code>) und <code>false</code>-Flags werden weggelassen.
+    </div>
+  </div>
+
+  <script>
+    const input = document.getElementById('fileInput');
+    const fileName = document.getElementById('fileName');
+    const submitBtn = document.getElementById('submitBtn');
+    const dropZone = document.getElementById('dropZone');
+
+    input.addEventListener('change', () => {
+      if (input.files.length > 0) {
+        fileName.textContent = input.files[0].name;
+        submitBtn.disabled = false;
+      }
+    });
+
+    ['dragover', 'dragleave', 'drop'].forEach(evt => {
+      dropZone.addEventListener(evt, e => {
+        e.preventDefault();
+        dropZone.classList.toggle('dragover', evt === 'dragover');
+      });
+    });
+  </script>
+</body>
+</html>
